@@ -44,6 +44,44 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 async def fetch_access_token(session, ip_address, username, password, client_id, client_secret):
     """Fetch the access token with the provided credentials."""
     url = f"http://{ip_address}/api/web-login/token"
+    
+    # URL-encode the data payload manually
+    payload = {
+        "grant_type": "password",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "username": username,
+        "password": password
+    }
+    
+    # URL-encode the payload
+    encoded_payload = urlencode(payload)
+
+    # Headers to mimic the fetch request
+    headers = {
+        "accept": "application/json, text/plain, */*",
+        "accept-language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "content-type": "application/x-www-form-urlencoded",
+        "x-requested-with": "XMLHttpRequest",
+    }
+
+    _LOGGER.debug("Requesting access token from: %s with payload: %s", url, encoded_payload)
+
+    try:
+        async with session.post(url, data=encoded_payload, headers=headers) as response:
+            if response.status == 200:
+                data = await response.json()
+                _LOGGER.debug("Response from access token request: %s", data)
+                return data.get('access_token')
+            else:
+                _LOGGER.error("Failed to get access token. Response status: %d", response.status)
+                _LOGGER.debug("Response content: %s", await response.text())
+                return None
+    except Exception as e:
+        _LOGGER.error("Error during access token request: %s", str(e))
+        return None
+    """Fetch the access token with the provided credentials."""
+    url = f"http://{ip_address}/api/web-login/token"
     payload = {
         "grant_type": "password",
         "client_id": client_id,
