@@ -1,13 +1,15 @@
-# /config/custom_components/ems_home/__init__.py
-
-"""The EMS Home component."""
 import logging
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers import discovery
 
 _LOGGER = logging.getLogger(__name__)
 
-def setup(hass: HomeAssistant, config: dict):
-    """Set up the EMS Home component."""
-    _LOGGER.info("Setting up EMS Home component")
-    # Here you can initialize your services, sensors, etc.
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Set up the emshome component."""
+    _LOGGER.info("Setting up emshome component")
+
+    # Register the sensors automatically
+    await discovery.async_load_platform(hass, "sensor", "emshome", {}, entry)
+
     return True
