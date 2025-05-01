@@ -1,0 +1,12 @@
+{
+  "domain": "emshome",
+  "name": "eMShome Smart Meter",
+  "documentation": "https://github.com/yourusername/ha-emshome",
+  "issue_tracker": "https://github.com/yourusername/ha-emshome/issues",
+  "dependencies": [],
+  "codeowners": ["@yourusername"],
+  "requirements": ["websockets>=10.0"],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "version": "0.1.0"
+}

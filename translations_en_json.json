@@ -1,0 +1,21 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Connect to eMShome",
+                "description": "Set up your eMShome Smart Meter integration",
+                "data": {
+                    "host": "IP Address",
+                    "password": "Password"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to the device, please check the IP address and password",
+            "unknown": "Unexpected error"
+        },
+        "abort": {
+            "already_configured": "This eMShome device is already configured"
+        }
+    }
+}
