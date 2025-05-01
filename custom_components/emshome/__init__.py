@@ -44,8 +44,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Start the websocket listener
     await client.start_listening()
 
-    # Set up all platforms
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+    # Set up all platforms (modern method)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
