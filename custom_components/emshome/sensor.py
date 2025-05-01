@@ -35,7 +35,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     # Create sensor entities
     sensors = [
-        EMShomeSensor("Access Token", access_token, session, ip_address),
         EMShomeSensor("Current Charging Mode", access_token, session, ip_address),
         EMShomeSensor("EV Charging Power Total", access_token, session, ip_address)
     ]
@@ -89,12 +88,8 @@ class EMShomeSensor(Entity):
 
     async def async_update(self):
         """Fetch new state data for the sensor."""
-        # Log before fetching data
-        _LOGGER.debug("Updating sensor: %s", self._name)
-
-        if self._name == "Access Token":
-            self._state = self._access_token
-        elif self._name == "Current Charging Mode":
+        # Example logic to update the state for each sensor
+        if self._name == "Current Charging Mode":
             self._state = await self.fetch_charging_mode()
         elif self._name == "EV Charging Power Total":
             self._state = await self.fetch_charging_power()
