@@ -1,0 +1,9 @@
+{
+  "name": "EMSHome Smart Meter",
+  "content_in_root": false,
+  "domain": "emshome",
+  "domain_path": "custom_components/emshome",
+  "country": "DE",
+  "integration_type": "integration",
+  "iot_class": "local_polling"
+}
