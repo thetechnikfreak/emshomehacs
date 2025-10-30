@@ -1,28 +1,26 @@
-# /config/custom_components/emshome/__init__.py
-
 import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers import discovery
 
 _LOGGER = logging.getLogger(__name__)
 
+DOMAIN = "emshome"
+
 async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up the emshome component using YAML configuration."""
-    _LOGGER.info("Setting up emshome component")
+    """Set up the emshome component from YAML (not used with UI config)."""
+    _LOGGER.debug("emshome: async_setup called, but config_flow handles setup")
+    return True  # This is required, even if only config_flow is used
 
-    # Extract IP and password from YAML configuration
-    ip_address = config.get('emshome', {}).get('ip_address', '192.168.188.26')
-    password = config.get('emshome', {}).get('password', 'DeinPasswort')
-    username = "admin"  # Default username, could also be configurable if needed
-    client_id = "emos"
-    client_secret = "56951025"
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Set up emshome from a config entry (UI)."""
+    _LOGGER.info("Setting up EMShome entry with data: %s", entry.data)
 
-    # Pass the configuration to the sensors
-    await discovery.async_load_platform(hass, "sensor", "emshome", {
-        "ip_address": ip_address,
-        "username": username,
-        "password": password,
-    }, config)
+    # Pass the config entry to your platform(s)
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 
     return True
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Handle unloading of an entry."""
+    _LOGGER.info("Unloading EMShome entry")
+    return await hass.config_entries.async_forward_entry_unload(entry, "sensor")
