@@ -121,31 +121,6 @@ async def fetch_access_token(session, ip_address, username, password, client_id,
     except Exception as e:
         _LOGGER.error("Error during access token request: %s", str(e))
         return None
-    """Fetch the access token with the provided credentials."""
-    url = f"http://{ip_address}/api/web-login/token"
-    payload = {
-        "grant_type": "password",
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "username": username,
-        "password": password
-    }
-    
-    _LOGGER.debug("Requesting access token from: %s", url)
-
-    try:
-        async with session.post(url, data=payload) as response:
-            if response.status == 200:
-                data = await response.json()
-                _LOGGER.debug("Response from access token request: %s", data)
-                return data.get('access_token')
-            else:
-                _LOGGER.error("Failed to get access token. Response status: %d", response.status)
-                _LOGGER.debug("Response content: %s", await response.text())
-                return None
-    except Exception as e:
-        _LOGGER.error("Error during access token request: %s", str(e))
-        return None
 
 class EMShomeSensor(Entity):
     """Representation of an EMShome sensor."""
