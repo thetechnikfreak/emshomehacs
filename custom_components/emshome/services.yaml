@@ -1,0 +1,42 @@
+set_charging_mode:
+  name: Set Charging Mode
+  description: Set the charging mode for the EV charger (lock, pv, grid, or hybrid)
+  fields:
+    mode:
+      name: Mode
+      description: The charging mode to set
+      required: true
+      selector:
+        select:
+          options:
+            - label: Lock
+              value: lock
+            - label: PV (Solar Only)
+              value: pv
+            - label: Grid
+              value: grid
+            - label: Hybrid
+              value: hybrid
+    minpvpowerquota:
+      name: Minimum PV Power Quota
+      description: Minimum PV power quota percentage (0-100). If not specified, defaults are used - PV mode=100%, Grid mode=0%, Hybrid mode=50%, Lock mode=0%
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+
+prozentage:
+  name: Set PV Percentage
+  description: Set the minimum PV power quota percentage for hybrid mode
+  fields:
+    prozentage:
+      name: Percentage
+      description: Minimum PV power quota (1-100%)
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"

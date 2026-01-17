@@ -34,12 +34,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(sensors)
     async def handle_set_mode(call):
         mode = call.data.get("mode")
-        _LOGGER.debug("Received service call to set mode: %s", mode)
-        await set_charging_mode(session, ip_address, access_token, mode)
+        minpvpowerquota = call.data.get("minpvpowerquota")
+        _LOGGER.debug("Received service call to set mode: %s with minpvpowerquota: %s", mode, minpvpowerquota)
+        await set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota)
 
     hass.services.async_register(
         "emshome", "set_charging_mode", handle_set_mode,
-        schema=vol.Schema({vol.Required("mode"): vol.In(["lock", "pv", "grid", "hybrid"])})
+        schema=vol.Schema({
+            vol.Required("mode"): vol.In(["lock", "pv", "grid", "hybrid"]),
+            vol.Optional("minpvpowerquota"): vol.All(vol.Coerce(int), vol.Range(min=0, max=100))
+        })
     )
     async def handle_set_prozentage(call):
         prozentage = call.data.get("prozentage")
@@ -209,7 +213,7 @@ class EMShomeSensor(Entity):
             _LOGGER.error("Error during EV prozentage request: %s", str(e))
             return None
 
-async def set_charging_mode(session, ip_address, access_token, mode):
+async def set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota=None):
     """Send a PUT request to set the charging mode."""
     url = f"http://{ip_address}/api/e-mobility/config/chargemode"
     headers = {
@@ -220,10 +224,22 @@ async def set_charging_mode(session, ip_address, access_token, mode):
         "Content-Type": "application/json;charset=UTF-8",
         "host": ip_address,
     }
+    
+    # Set default minpvpowerquota based on mode if not provided
+    if minpvpowerquota is None:
+        if mode == "pv":
+            minpvpowerquota = 100  # Pure PV mode
+        elif mode == "grid":
+            minpvpowerquota = 0  # Grid mode doesn't use PV
+        elif mode == "hybrid":
+            minpvpowerquota = 50  # Default hybrid at 50%
+        else:  # lock mode
+            minpvpowerquota = 0
+    
     payload = {
         "mode": mode,
         "mincharginpowerquota": None,
-        "minpvpowerquota": 0
+        "minpvpowerquota": minpvpowerquota
     }
 
     _LOGGER.debug("Sending PUT to %s with payload: %s", url, payload)
@@ -231,7 +247,7 @@ async def set_charging_mode(session, ip_address, access_token, mode):
     try:
         async with session.put(url, headers=headers, json=payload) as response:
             if response.status == 200:
-                _LOGGER.info("Successfully set charging mode to %s", mode)
+                _LOGGER.info("Successfully set charging mode to %s with minpvpowerquota %s", mode, minpvpowerquota)
             else:
                 _LOGGER.error("Failed to set charging mode. Status: %d", response.status)
                 _LOGGER.debug("Response content: %s", await response.text())
