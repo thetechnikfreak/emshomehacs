@@ -240,7 +240,7 @@ async def set_charging_mode(session, ip_address, access_token, mode, minpvpowerq
     
     payload = {
         "mode": mode,
-        "minchargingpowerquota": None,  # Will be sent as JSON null
+        "minchargingpowerquota": "null", 
         "minpvpowerquota": minpvpowerquota
     }
 
@@ -270,7 +270,7 @@ async def set_prozentage(session, ip_address, access_token, prozentage):
     }
     payload = {
         "mode": "hybrid",
-        "minchargingpowerquota": None,  # Will be sent as JSON null
+        "minchargingpowerquota": "null",
         "minpvpowerquota": prozentage
     }
 
