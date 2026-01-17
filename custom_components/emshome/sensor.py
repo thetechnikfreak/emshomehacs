@@ -9,6 +9,14 @@ from urllib.parse import urlencode
 
 _LOGGER = logging.getLogger(__name__)
 
+# Sensor name constants
+SENSOR_CHARGING_MODE = "Current Charging Mode"
+SENSOR_PV_PROZENTAGE = "Current PV Prozentage"
+SENSOR_EV_POWER = "EV Charging Power Total"
+
+# List of all sensors that should be updated after service calls
+ALL_SENSORS = [SENSOR_CHARGING_MODE, SENSOR_PV_PROZENTAGE, SENSOR_EV_POWER]
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up EMShome sensors from a config entry."""
     ip_address = entry.data.get('ip_address')
@@ -27,16 +35,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         return
 
     sensors = [
-        EMShomeSensor("Current Charging Mode", access_token, session, ip_address),
-        EMShomeSensor("Current PV Prozentage", access_token, session, ip_address),
-        EMShomeSensor("EV Charging Power Total", access_token, session, ip_address),
+        EMShomeSensor(SENSOR_CHARGING_MODE, access_token, session, ip_address),
+        EMShomeSensor(SENSOR_PV_PROZENTAGE, access_token, session, ip_address),
+        EMShomeSensor(SENSOR_EV_POWER, access_token, session, ip_address),
     ]
     async_add_entities(sensors)
+    
+    # Store sensor references for immediate updates after service calls
+    sensor_dict = {sensor.name: sensor for sensor in sensors}
     async def handle_set_mode(call):
         mode = call.data.get("mode")
         minpvpowerquota = call.data.get("minpvpowerquota")
         _LOGGER.debug("Received service call to set mode: %s with minpvpowerquota: %s", mode, minpvpowerquota)
         await set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota)
+        
+        # Trigger immediate update of affected sensors
+        for sensor_name in ALL_SENSORS:
+            if sensor_name in sensor_dict:
+                try:
+                    await sensor_dict[sensor_name].async_update_ha_state(True)
+                except Exception as e:
+                    _LOGGER.error("Failed to update sensor %s: %s", sensor_name, str(e))
 
     hass.services.async_register(
         "emshome", "set_charging_mode", handle_set_mode,
@@ -49,6 +68,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         prozentage = call.data.get("prozentage")
         _LOGGER.debug("Received service call to set prozentage: %s", prozentage)
         await set_prozentage(session, ip_address, access_token, prozentage)
+        
+        # Trigger immediate update of affected sensors
+        for sensor_name in ALL_SENSORS:
+            if sensor_name in sensor_dict:
+                try:
+                    await sensor_dict[sensor_name].async_update_ha_state(True)
+                except Exception as e:
+                    _LOGGER.error("Failed to update sensor %s: %s", sensor_name, str(e))
 
     hass.services.async_register(
         "emshome", "prozentage", handle_set_prozentage,
@@ -94,31 +121,6 @@ async def fetch_access_token(session, ip_address, username, password, client_id,
     except Exception as e:
         _LOGGER.error("Error during access token request: %s", str(e))
         return None
-    """Fetch the access token with the provided credentials."""
-    url = f"http://{ip_address}/api/web-login/token"
-    payload = {
-        "grant_type": "password",
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "username": username,
-        "password": password
-    }
-    
-    _LOGGER.debug("Requesting access token from: %s", url)
-
-    try:
-        async with session.post(url, data=payload) as response:
-            if response.status == 200:
-                data = await response.json()
-                _LOGGER.debug("Response from access token request: %s", data)
-                return data.get('access_token')
-            else:
-                _LOGGER.error("Failed to get access token. Response status: %d", response.status)
-                _LOGGER.debug("Response content: %s", await response.text())
-                return None
-    except Exception as e:
-        _LOGGER.error("Error during access token request: %s", str(e))
-        return None
 
 class EMShomeSensor(Entity):
     """Representation of an EMShome sensor."""
@@ -141,11 +143,11 @@ class EMShomeSensor(Entity):
     async def async_update(self):
         """Fetch new state data for the sensor."""
         # Example logic to update the state for each sensor
-        if self._name == "Current Charging Mode":
+        if self._name == SENSOR_CHARGING_MODE:
             self._state = await self.fetch_charging_mode()
-        elif self._name == "EV Charging Power Total":
+        elif self._name == SENSOR_EV_POWER:
             self._state = await self.fetch_charging_power()
-        elif self._name == "Current PV Prozentage":
+        elif self._name == SENSOR_PV_PROZENTAGE:
             self._state = await self.fetch_prozentage()
 
     async def fetch_charging_mode(self):
@@ -278,7 +280,7 @@ async def set_prozentage(session, ip_address, access_token, prozentage):
             if response.status == 204:
                 _LOGGER.info("Successfully set prozentage to %s", prozentage)
             else:
-                _LOGGER.error("Failed to set prozentage stus: %d", response.status)
+                _LOGGER.error("Failed to set prozentage status: %d", response.status)
                 _LOGGER.debug("Response content: %s", await response.text())
     except Exception as e:
         _LOGGER.error("Error setting prozentage: %s", str(e))
