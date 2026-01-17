@@ -32,11 +32,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         EMShomeSensor("EV Charging Power Total", access_token, session, ip_address),
     ]
     async_add_entities(sensors)
+    
+    # Store sensor references for immediate updates after service calls
+    sensor_dict = {sensor.name: sensor for sensor in sensors}
     async def handle_set_mode(call):
         mode = call.data.get("mode")
         minpvpowerquota = call.data.get("minpvpowerquota")
         _LOGGER.debug("Received service call to set mode: %s with minpvpowerquota: %s", mode, minpvpowerquota)
         await set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota)
+        
+        # Trigger immediate update of affected sensors
+        for sensor_name in ["Current Charging Mode", "Current PV Prozentage"]:
+            if sensor_name in sensor_dict:
+                await sensor_dict[sensor_name].async_update_ha_state(True)
 
     hass.services.async_register(
         "emshome", "set_charging_mode", handle_set_mode,
@@ -49,6 +57,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         prozentage = call.data.get("prozentage")
         _LOGGER.debug("Received service call to set prozentage: %s", prozentage)
         await set_prozentage(session, ip_address, access_token, prozentage)
+        
+        # Trigger immediate update of affected sensors
+        for sensor_name in ["Current PV Prozentage", "Current Charging Mode"]:
+            if sensor_name in sensor_dict:
+                await sensor_dict[sensor_name].async_update_ha_state(True)
 
     hass.services.async_register(
         "emshome", "prozentage", handle_set_prozentage,
