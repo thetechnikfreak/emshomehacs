@@ -9,6 +9,11 @@ from urllib.parse import urlencode
 
 _LOGGER = logging.getLogger(__name__)
 
+# Sensor name constants
+SENSOR_CHARGING_MODE = "Current Charging Mode"
+SENSOR_PV_PROZENTAGE = "Current PV Prozentage"
+SENSOR_EV_POWER = "EV Charging Power Total"
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up EMShome sensors from a config entry."""
     ip_address = entry.data.get('ip_address')
@@ -27,9 +32,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         return
 
     sensors = [
-        EMShomeSensor("Current Charging Mode", access_token, session, ip_address),
-        EMShomeSensor("Current PV Prozentage", access_token, session, ip_address),
-        EMShomeSensor("EV Charging Power Total", access_token, session, ip_address),
+        EMShomeSensor(SENSOR_CHARGING_MODE, access_token, session, ip_address),
+        EMShomeSensor(SENSOR_PV_PROZENTAGE, access_token, session, ip_address),
+        EMShomeSensor(SENSOR_EV_POWER, access_token, session, ip_address),
     ]
     async_add_entities(sensors)
     
@@ -42,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         await set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota)
         
         # Trigger immediate update of affected sensors
-        for sensor_name in ["Current Charging Mode", "Current PV Prozentage", "EV Charging Power Total"]:
+        for sensor_name in [SENSOR_CHARGING_MODE, SENSOR_PV_PROZENTAGE, SENSOR_EV_POWER]:
             if sensor_name in sensor_dict:
                 await sensor_dict[sensor_name].async_update_ha_state(True)
 
@@ -59,7 +64,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         await set_prozentage(session, ip_address, access_token, prozentage)
         
         # Trigger immediate update of affected sensors
-        for sensor_name in ["Current PV Prozentage", "Current Charging Mode", "EV Charging Power Total"]:
+        for sensor_name in [SENSOR_PV_PROZENTAGE, SENSOR_CHARGING_MODE, SENSOR_EV_POWER]:
             if sensor_name in sensor_dict:
                 await sensor_dict[sensor_name].async_update_ha_state(True)
 
@@ -154,11 +159,11 @@ class EMShomeSensor(Entity):
     async def async_update(self):
         """Fetch new state data for the sensor."""
         # Example logic to update the state for each sensor
-        if self._name == "Current Charging Mode":
+        if self._name == SENSOR_CHARGING_MODE:
             self._state = await self.fetch_charging_mode()
-        elif self._name == "EV Charging Power Total":
+        elif self._name == SENSOR_EV_POWER:
             self._state = await self.fetch_charging_power()
-        elif self._name == "Current PV Prozentage":
+        elif self._name == SENSOR_PV_PROZENTAGE:
             self._state = await self.fetch_prozentage()
 
     async def fetch_charging_mode(self):
