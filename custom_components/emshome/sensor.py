@@ -240,7 +240,7 @@ async def set_charging_mode(session, ip_address, access_token, mode, minpvpowerq
     
     payload = {
         "mode": mode,
-        "mincharginpowerquota": None,
+        "minchargingpowerquota": None,
         "minpvpowerquota": minpvpowerquota
     }
 
@@ -269,7 +269,7 @@ async def set_prozentage(session, ip_address, access_token, prozentage):
     }
     payload = {
         "mode": "hybrid",
-        "mincharginpowerquota": None,
+        "minchargingpowerquota": None,
         "minpvpowerquota": prozentage
     }
 
