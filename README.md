@@ -9,6 +9,9 @@ This custom integration allows you to monitor your eMShome Smart Meter in Home A
 
 - Monitor total active power consumption
 - Monitor active power consumption per phase (L1, L2, L3)
+- Monitor and control EV charging modes (Lock, PV, Grid, Hybrid)
+- Monitor current EV charging power
+- Configure minimum PV power quota for charging modes
 - Real-time updates via WebSocket connection
 
 ## Screenshots
@@ -50,6 +53,45 @@ The integration creates the following entities:
 - `sensor.l1_active_power`: Phase L1 active power consumption
 - `sensor.l2_active_power`: Phase L2 active power consumption
 - `sensor.l3_active_power`: Phase L3 active power consumption
+- `sensor.current_charging_mode`: Current EV charging mode
+- `sensor.current_pv_prozentage`: Current minimum PV power quota percentage
+- `sensor.ev_charging_power_total`: Total EV charging power
+
+## Available Services
+
+### emshome.set_charging_mode
+
+Set the charging mode for the EV charger.
+
+**Parameters:**
+- `mode` (required): The charging mode to set. Options: `lock`, `pv`, `grid`, `hybrid`
+- `minpvpowerquota` (optional): Minimum PV power quota percentage (0-100). If not specified:
+  - PV mode: defaults to 100% (pure solar)
+  - Grid mode: defaults to 0% (grid only)
+  - Hybrid mode: defaults to 50% (50% PV, 50% grid)
+  - Lock mode: defaults to 0%
+
+**Example:**
+```yaml
+service: emshome.set_charging_mode
+data:
+  mode: hybrid
+  minpvpowerquota: 75
+```
+
+### emshome.prozentage
+
+Set the minimum PV power quota percentage for hybrid mode.
+
+**Parameters:**
+- `prozentage` (required): Percentage value between 1-100
+
+**Example:**
+```yaml
+service: emshome.prozentage
+data:
+  prozentage: 60
+```
 
 ## Examples
 
