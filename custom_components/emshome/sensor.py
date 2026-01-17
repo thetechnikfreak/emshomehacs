@@ -42,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         await set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota)
         
         # Trigger immediate update of affected sensors
-        for sensor_name in ["Current Charging Mode", "Current PV Prozentage"]:
+        for sensor_name in ["Current Charging Mode", "Current PV Prozentage", "EV Charging Power Total"]:
             if sensor_name in sensor_dict:
                 await sensor_dict[sensor_name].async_update_ha_state(True)
 
@@ -59,7 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         await set_prozentage(session, ip_address, access_token, prozentage)
         
         # Trigger immediate update of affected sensors
-        for sensor_name in ["Current PV Prozentage", "Current Charging Mode"]:
+        for sensor_name in ["Current PV Prozentage", "Current Charging Mode", "EV Charging Power Total"]:
             if sensor_name in sensor_dict:
                 await sensor_dict[sensor_name].async_update_ha_state(True)
 
