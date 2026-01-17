@@ -14,6 +14,9 @@ SENSOR_CHARGING_MODE = "Current Charging Mode"
 SENSOR_PV_PROZENTAGE = "Current PV Prozentage"
 SENSOR_EV_POWER = "EV Charging Power Total"
 
+# List of all sensors that should be updated after service calls
+ALL_SENSORS = [SENSOR_CHARGING_MODE, SENSOR_PV_PROZENTAGE, SENSOR_EV_POWER]
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up EMShome sensors from a config entry."""
     ip_address = entry.data.get('ip_address')
@@ -47,9 +50,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         await set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota)
         
         # Trigger immediate update of affected sensors
-        for sensor_name in [SENSOR_CHARGING_MODE, SENSOR_PV_PROZENTAGE, SENSOR_EV_POWER]:
+        for sensor_name in ALL_SENSORS:
             if sensor_name in sensor_dict:
-                await sensor_dict[sensor_name].async_update_ha_state(True)
+                try:
+                    await sensor_dict[sensor_name].async_update_ha_state(True)
+                except Exception as e:
+                    _LOGGER.error("Failed to update sensor %s: %s", sensor_name, str(e))
 
     hass.services.async_register(
         "emshome", "set_charging_mode", handle_set_mode,
@@ -64,9 +70,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         await set_prozentage(session, ip_address, access_token, prozentage)
         
         # Trigger immediate update of affected sensors
-        for sensor_name in [SENSOR_PV_PROZENTAGE, SENSOR_CHARGING_MODE, SENSOR_EV_POWER]:
+        for sensor_name in ALL_SENSORS:
             if sensor_name in sensor_dict:
-                await sensor_dict[sensor_name].async_update_ha_state(True)
+                try:
+                    await sensor_dict[sensor_name].async_update_ha_state(True)
+                except Exception as e:
+                    _LOGGER.error("Failed to update sensor %s: %s", sensor_name, str(e))
 
     hass.services.async_register(
         "emshome", "prozentage", handle_set_prozentage,
@@ -296,7 +305,7 @@ async def set_prozentage(session, ip_address, access_token, prozentage):
             if response.status == 204:
                 _LOGGER.info("Successfully set prozentage to %s", prozentage)
             else:
-                _LOGGER.error("Failed to set prozentage stus: %d", response.status)
+                _LOGGER.error("Failed to set prozentage status: %d", response.status)
                 _LOGGER.debug("Response content: %s", await response.text())
     except Exception as e:
         _LOGGER.error("Error setting prozentage: %s", str(e))
