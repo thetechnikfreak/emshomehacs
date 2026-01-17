@@ -240,7 +240,7 @@ async def set_charging_mode(session, ip_address, access_token, mode, minpvpowerq
     
     payload = {
         "mode": mode,
-        "minchargingpowerquota": None,
+        "minchargingpowerquota": "null",
         "minpvpowerquota": minpvpowerquota
     }
 
