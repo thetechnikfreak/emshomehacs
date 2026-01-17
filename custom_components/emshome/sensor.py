@@ -240,7 +240,7 @@ async def set_charging_mode(session, ip_address, access_token, mode, minpvpowerq
     
     payload = {
         "mode": mode,
-        "minchargingpowerquota": "null",
+        "minchargingpowerquota": "null",  # API expects string "null"
         "minpvpowerquota": minpvpowerquota
     }
 
@@ -248,13 +248,43 @@ async def set_charging_mode(session, ip_address, access_token, mode, minpvpowerq
 
     try:
         async with session.put(url, headers=headers, json=payload) as response:
-            if response.status == 200:
+            # Check for both 200 and 204 status codes (both indicate success)
+            if response.status in [200, 204]:
                 _LOGGER.info("Successfully set charging mode to %s with minpvpowerquota %s", mode, minpvpowerquota)
             else:
                 _LOGGER.error("Failed to set charging mode. Status: %d", response.status)
                 _LOGGER.debug("Response content: %s", await response.text())
     except Exception as e:
         _LOGGER.error("Error setting charging mode: %s", str(e))
+        
+async def set_prozentage(session, ip_address, access_token, prozentage):
+    """Send a PUT request to set the prozentage."""
+    url = f"http://{ip_address}/api/e-mobility/config/chargemode"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "X-Requested-With": "XMLHttpRequest",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json;charset=UTF-8",
+        "host": ip_address,
+    }
+    payload = {
+        "mode": "hybrid",
+        "mincharginpowerquota": "null",  # API expects string "null"
+        "minpvpowerquota": prozentage
+    }
+
+    _LOGGER.debug("Sending PUT to %s with payload: %s", url, payload)
+
+    try:
+        async with session.put(url, headers=headers, json=payload) as response:
+            if response.status == 204:
+                _LOGGER.info("Successfully set prozentage to %s", prozentage)
+            else:
+                _LOGGER.error("Failed to set prozentage status: %d", response.status)
+                _LOGGER.debug("Response content: %s", await response.text())
+    except Exception as e:
+        _LOGGER.error("Error setting prozentage: %s", str(e))
         
 async def set_prozentage(session, ip_address, access_token, prozentage):
     """Send a PUT request to set the prozentage."""
