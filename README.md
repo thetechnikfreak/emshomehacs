@@ -7,7 +7,6 @@ This custom integration allows you to monitor your eMShome Smart Meter in Home A
 
 ## Features
 
-- Monitor total active power consumption
 - Monitor and control EV charging modes (Lock, PV, Grid, Hybrid)
 - Monitor current EV charging power
 - Configure minimum PV power quota for charging modes
@@ -45,7 +44,6 @@ This custom integration allows you to monitor your eMShome Smart Meter in Home A
 
 The integration creates the following entities:
 
-- `sensor.total_active_power`: Total active power consumption
 - `sensor.current_charging_mode`: Current EV charging mode
 - `sensor.current_pv_prozentage`: Current minimum PV power quota percentage
 - `sensor.ev_charging_power_total`: Total EV charging power
