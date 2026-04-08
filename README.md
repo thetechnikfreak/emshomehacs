@@ -92,7 +92,7 @@ energy:
 ```
 
 ### Lovelace Card 
-
+[See here](https://github.com/thetechnikfreak/emshomeprintcard)
 
 ## Contributing
 
