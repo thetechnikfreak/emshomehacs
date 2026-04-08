@@ -8,15 +8,11 @@ This custom integration allows you to monitor your eMShome Smart Meter in Home A
 ## Features
 
 - Monitor total active power consumption
-- Monitor active power consumption per phase (L1, L2, L3)
 - Monitor and control EV charging modes (Lock, PV, Grid, Hybrid)
 - Monitor current EV charging power
 - Configure minimum PV power quota for charging modes
 - Real-time updates via WebSocket connection
 
-## Screenshots
-
-![eMShome Integration](https://via.placeholder.com/800x450.png?text=eMShome+Integration)
 
 ## Installation
 
@@ -50,9 +46,6 @@ This custom integration allows you to monitor your eMShome Smart Meter in Home A
 The integration creates the following entities:
 
 - `sensor.total_active_power`: Total active power consumption
-- `sensor.l1_active_power`: Phase L1 active power consumption
-- `sensor.l2_active_power`: Phase L2 active power consumption
-- `sensor.l3_active_power`: Phase L3 active power consumption
 - `sensor.current_charging_mode`: Current EV charging mode
 - `sensor.current_pv_prozentage`: Current minimum PV power quota percentage
 - `sensor.ev_charging_power_total`: Total EV charging power
@@ -65,11 +58,7 @@ Set the charging mode for the EV charger.
 
 **Parameters:**
 - `mode` (required): The charging mode to set. Options: `lock`, `pv`, `grid`, `hybrid`
-- `minpvpowerquota` (optional): Minimum PV power quota percentage (0-100). If not specified:
-  - PV mode: defaults to 100% (pure solar)
-  - Grid mode: defaults to 0% (grid only)
-  - Hybrid mode: defaults to 50% (50% PV, 50% grid)
-  - Lock mode: defaults to 0%
+- `minpvpowerquota` (optional): for the hybrid mode
 
 **Example:**
 ```yaml
@@ -104,17 +93,8 @@ energy:
       entity_id: sensor.total_active_power
 ```
 
-### Lovelace Card Example
+### Lovelace Card 
 
-```yaml
-type: entities
-title: eMShome Smart Meter
-entities:
-  - entity: sensor.total_active_power
-  - entity: sensor.l1_active_power
-  - entity: sensor.l2_active_power
-  - entity: sensor.l3_active_power
-```
 
 ## Contributing
 
