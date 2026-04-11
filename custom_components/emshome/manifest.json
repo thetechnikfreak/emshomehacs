@@ -5,8 +5,8 @@
   "issue_tracker": "https://github.com/thetechnikfreak/emshomehacs/issues",
   "dependencies": [],
   "codeowners": ["@thetechnikfreak"],
-  "requirements": ["aiohttp"],
+  "requirements": [],
   "config_flow": true,
-  "iot_class": "cloud_polling",
+  "iot_class": "local_polling",
   "version": "1.4.0"
 }

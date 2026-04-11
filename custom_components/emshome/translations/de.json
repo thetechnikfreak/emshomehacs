@@ -1,0 +1,66 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Mit eMShome verbinden",
+                "description": "Richte deine eMShome Smart Meter Integration ein.",
+                "data": {
+                    "host": "Host / IP-Adresse",
+                    "password": "Passwort"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Verbindung zum Gerät fehlgeschlagen. Bitte überprüfe Host und Passwort.",
+            "unknown": "Unerwarteter Fehler aufgetreten."
+        },
+        "abort": {
+            "already_configured": "Dieses eMShome-Gerät ist bereits konfiguriert."
+        }
+    },
+    "entity": {
+        "sensor": {
+            "charging_mode": {
+                "name": "Lademodus",
+                "state": {
+                    "lock": "Gesperrt",
+                    "pv": "PV (nur Solar)",
+                    "grid": "Netz",
+                    "hybrid": "Hybrid"
+                }
+            },
+            "pv_percentage": {
+                "name": "PV-Anteil"
+            },
+            "ev_charging_power_total": {
+                "name": "EV-Ladeleistung"
+            }
+        }
+    },
+    "services": {
+        "set_charging_mode": {
+            "name": "Lademodus setzen",
+            "description": "Setzt den Lademodus für die Wallbox.",
+            "fields": {
+                "mode": {
+                    "name": "Modus",
+                    "description": "Der gewünschte Lademodus (lock, pv, grid oder hybrid)."
+                },
+                "minpvpowerquota": {
+                    "name": "Minimaler PV-Leistungsanteil",
+                    "description": "Minimaler PV-Leistungsanteil in Prozent (0–100). Standard: PV=100%, Netz=0%, Hybrid=50%, Gesperrt=0%."
+                }
+            }
+        },
+        "prozentage": {
+            "name": "PV-Anteil setzen",
+            "description": "Setzt den minimalen PV-Leistungsanteil für den Hybridmodus.",
+            "fields": {
+                "prozentage": {
+                    "name": "Prozentsatz",
+                    "description": "Minimaler PV-Leistungsanteil (1–100%)."
+                }
+            }
+        }
+    }
+}

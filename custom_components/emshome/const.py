@@ -1,0 +1,24 @@
+"""Constants for the eMShome integration."""
+
+DOMAIN = "emshome"
+
+CONF_LEGACY_IP_ADDRESS = "ip_address"
+
+DEFAULT_USERNAME = "admin"
+DEFAULT_CLIENT_ID = "emos"
+DEFAULT_CLIENT_SECRET = "56951025"
+
+SENSOR_CHARGING_MODE = "charging_mode"
+SENSOR_PV_PERCENTAGE = "pv_percentage"
+SENSOR_EV_POWER_TOTAL = "ev_charging_power_total"
+
+SENSOR_KEYS = [
+    SENSOR_CHARGING_MODE,
+    SENSOR_PV_PERCENTAGE,
+    SENSOR_EV_POWER_TOTAL,
+]
+
+SERVICE_SET_CHARGING_MODE = "set_charging_mode"
+SERVICE_SET_PERCENTAGE = "prozentage"
+
+DEFAULT_UPDATE_INTERVAL_SECONDS = 20
