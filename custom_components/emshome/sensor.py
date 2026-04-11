@@ -1,287 +1,162 @@
+"""Sensor platform for the eMShome integration."""
+
+from __future__ import annotations
+
 import logging
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-import aiohttp
+from typing import Any
+
 import voluptuous as vol
-from urllib.parse import urlencode
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE, UnitOfPower
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .api import EMShomeApiClient
+from .const import (
+    DOMAIN,
+    SENSOR_CHARGING_MODE,
+    SENSOR_EV_POWER_TOTAL,
+    SENSOR_KEYS,
+    SENSOR_PV_PERCENTAGE,
+    SERVICE_SET_CHARGING_MODE,
+    SERVICE_SET_PERCENTAGE,
+)
+from .coordinator import EMShomeDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# Sensor name constants
-SENSOR_CHARGING_MODE = "Current Charging Mode"
-SENSOR_PV_PROZENTAGE = "Current PV Prozentage"
-SENSOR_EV_POWER = "EV Charging Power Total"
 
-# List of all sensors that should be updated after service calls
-ALL_SENSORS = [SENSOR_CHARGING_MODE, SENSOR_PV_PROZENTAGE, SENSOR_EV_POWER]
+SENSOR_DESCRIPTIONS: dict[str, dict[str, Any]] = {
+    SENSOR_CHARGING_MODE: {
+        "translation_key": SENSOR_CHARGING_MODE,
+        "icon": "mdi:ev-station",
+    },
+    SENSOR_PV_PERCENTAGE: {
+        "translation_key": SENSOR_PV_PERCENTAGE,
+        "icon": "mdi:solar-power",
+        "native_unit_of_measurement": PERCENTAGE,
+    },
+    SENSOR_EV_POWER_TOTAL: {
+        "translation_key": SENSOR_EV_POWER_TOTAL,
+        "icon": "mdi:flash",
+        "native_unit_of_measurement": UnitOfPower.WATT,
+        "device_class": SensorDeviceClass.POWER,
+    },
+}
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Set up EMShome sensors from a config entry."""
-    ip_address = entry.data.get('ip_address')
-    password = entry.data.get('password')
-    username = "admin"
-    client_id = "emos"
-    client_secret = "56951025"
 
-    session = async_get_clientsession(hass)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up eMShome sensors for a config entry."""
+    runtime = hass.data[DOMAIN][entry.entry_id]
+    coordinator: EMShomeDataUpdateCoordinator = runtime["coordinator"]
+    api: EMShomeApiClient = runtime["api"]
 
-    _LOGGER.debug("Setting up sensors for IP %s", ip_address)
-
-    access_token = await fetch_access_token(session, ip_address, username, password, client_id, client_secret)
-    if not access_token:
-        _LOGGER.error("Failed to retrieve access token.")
-        return
-
-    sensors = [
-        EMShomeSensor(SENSOR_CHARGING_MODE, access_token, session, ip_address),
-        EMShomeSensor(SENSOR_PV_PROZENTAGE, access_token, session, ip_address),
-        EMShomeSensor(SENSOR_EV_POWER, access_token, session, ip_address),
+    entities = [
+        EMShomeSensor(coordinator=coordinator, entry=entry, sensor_key=sensor_key)
+        for sensor_key in SENSOR_KEYS
     ]
-    async_add_entities(sensors)
-    
-    # Store sensor references for immediate updates after service calls
-    sensor_dict = {sensor.name: sensor for sensor in sensors}
-    async def handle_set_mode(call):
-        mode = call.data.get("mode")
-        minpvpowerquota = call.data.get("minpvpowerquota")
-        _LOGGER.debug("Received service call to set mode: %s with minpvpowerquota: %s", mode, minpvpowerquota)
-        await set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota)
-        
-        # Trigger immediate update of affected sensors
-        for sensor_name in ALL_SENSORS:
-            if sensor_name in sensor_dict:
-                try:
-                    await sensor_dict[sensor_name].async_update_ha_state(True)
-                except Exception as e:
-                    _LOGGER.error("Failed to update sensor %s: %s", sensor_name, str(e))
+    async_add_entities(entities)
 
-    hass.services.async_register(
-        "emshome", "set_charging_mode", handle_set_mode,
-        schema=vol.Schema({
-            vol.Required("mode"): vol.In(["lock", "pv", "grid", "hybrid"]),
-            vol.Optional("minpvpowerquota"): vol.All(vol.Coerce(int), vol.Range(min=0, max=100))
-        })
-    )
-    async def handle_set_prozentage(call):
-        prozentage = call.data.get("prozentage")
-        _LOGGER.debug("Received service call to set prozentage: %s", prozentage)
-        await set_prozentage(session, ip_address, access_token, prozentage)
-        
-        # Trigger immediate update of affected sensors
-        for sensor_name in ALL_SENSORS:
-            if sensor_name in sensor_dict:
-                try:
-                    await sensor_dict[sensor_name].async_update_ha_state(True)
-                except Exception as e:
-                    _LOGGER.error("Failed to update sensor %s: %s", sensor_name, str(e))
+    async def handle_set_mode(call: ServiceCall) -> None:
+        mode: str = call.data["mode"]
+        minpvpowerquota: int | None = call.data.get("minpvpowerquota")
+        if not await api.async_set_charging_mode(mode, minpvpowerquota):
+            _LOGGER.error("Failed to set charging mode to %s", mode)
+            return
+        await coordinator.async_request_refresh()
 
-    hass.services.async_register(
-        "emshome", "prozentage", handle_set_prozentage,
-        schema=vol.Schema({vol.Required("prozentage"): vol.All(vol.Coerce(int), vol.Range(min=1, max=100))})
-    )
+    async def handle_set_percentage(call: ServiceCall) -> None:
+        percentage: int = call.data["prozentage"]
+        if not await api.async_set_percentage(percentage):
+            _LOGGER.error("Failed to set percentage to %s", percentage)
+            return
+        await coordinator.async_request_refresh()
 
-async def fetch_access_token(session, ip_address, username, password, client_id, client_secret):
-    """Fetch the access token with the provided credentials."""
-    url = f"http://{ip_address}/api/web-login/token"
-    
-    # URL-encode the data payload manually
-    payload = {
-        "grant_type": "password",
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "username": username,
-        "password": password
-    }
-    
-    # URL-encode the payload
-    encoded_payload = urlencode(payload)
+    services = runtime.setdefault("services", [])
 
-    # Headers to mimic the fetch request
-    headers = {
-        "accept": "application/json, text/plain, */*",
-        "accept-language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        "content-type": "application/x-www-form-urlencoded",
-        "x-requested-with": "XMLHttpRequest",
-    }
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_CHARGING_MODE):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_CHARGING_MODE,
+            handle_set_mode,
+            schema=vol.Schema(
+                {
+                    vol.Required("mode"): vol.In(["lock", "pv", "grid", "hybrid"]),
+                    vol.Optional("minpvpowerquota"): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=100)
+                    ),
+                }
+            ),
+        )
+        services.append((SERVICE_SET_CHARGING_MODE, handle_set_mode))
 
-    _LOGGER.debug("Requesting access token from: %s with payload: %s", url, encoded_payload)
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_PERCENTAGE):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_PERCENTAGE,
+            handle_set_percentage,
+            schema=vol.Schema(
+                {
+                    vol.Required("prozentage"): vol.All(
+                        vol.Coerce(int), vol.Range(min=1, max=100)
+                    )
+                }
+            ),
+        )
+        services.append((SERVICE_SET_PERCENTAGE, handle_set_percentage))
 
-    try:
-        async with session.post(url, data=encoded_payload, headers=headers) as response:
-            if response.status == 200:
-                data = await response.json()
-                _LOGGER.debug("Response from access token request: %s", data)
-                return data.get('access_token')
-            else:
-                _LOGGER.error("Failed to get access token. Response status: %d", response.status)
-                _LOGGER.debug("Response content: %s", await response.text())
-                return None
-    except Exception as e:
-        _LOGGER.error("Error during access token request: %s", str(e))
-        return None
 
-class EMShomeSensor(Entity):
-    """Representation of an EMShome sensor."""
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload sensor services for this config entry."""
+    runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+    for service_name, _ in runtime.get("services", []):
+        if hass.services.has_service(DOMAIN, service_name):
+            hass.services.async_remove(DOMAIN, service_name)
+    runtime["services"] = []
+    return True
 
-    def __init__(self, name, access_token, session, ip_address):
-        self._name = name
-        self._access_token = access_token
-        self._session = session
-        self._ip_address = ip_address
-        self._state = None
+
+class EMShomeSensor(CoordinatorEntity[EMShomeDataUpdateCoordinator], SensorEntity):
+    """Representation of an eMShome sensor."""
+
+    def __init__(
+        self,
+        coordinator: EMShomeDataUpdateCoordinator,
+        entry: ConfigEntry,
+        sensor_key: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._sensor_key = sensor_key
+        self._entry = entry
+        self._attr_has_entity_name = True
+
+        description = SENSOR_DESCRIPTIONS[sensor_key]
+        self._attr_translation_key = description["translation_key"]
+        self._attr_icon = description.get("icon")
+        self._attr_device_class = description.get("device_class")
+        self._attr_native_unit_of_measurement = description.get("native_unit_of_measurement")
+        self._attr_unique_id = f"{entry.entry_id}_{sensor_key}"
 
     @property
-    def name(self):
-        return self._name
+    def device_info(self) -> DeviceInfo:
+        """Describe the parent eMShome device."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name="eMShome Smart Meter",
+            manufacturer="eMShome",
+            model="Smart Meter",
+            configuration_url=f"http://{self.coordinator.api.host}",
+        )
 
     @property
-    def state(self):
-        return self._state
-
-    async def async_update(self):
-        """Fetch new state data for the sensor."""
-        # Example logic to update the state for each sensor
-        if self._name == SENSOR_CHARGING_MODE:
-            self._state = await self.fetch_charging_mode()
-        elif self._name == SENSOR_EV_POWER:
-            self._state = await self.fetch_charging_power()
-        elif self._name == SENSOR_PV_PROZENTAGE:
-            self._state = await self.fetch_prozentage()
-
-    async def fetch_charging_mode(self):
-        """Fetch the current charging mode from the API."""
-        url = f"http://{self._ip_address}/api/e-mobility/config/chargemode"
-        headers = {"Authorization": f"Bearer {self._access_token}"}
-
-        _LOGGER.debug("Requesting current charging mode from: %s", url)
-
-        try:
-            async with self._session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    _LOGGER.debug("Response for charging mode: %s", data)
-                    return data.get("mode")
-                else:
-                    _LOGGER.error("Failed to get charging mode. Response status: %d", response.status)
-                    _LOGGER.debug("Response content: %s", await response.text())
-                    return None
-        except Exception as e:
-            _LOGGER.error("Error during charging mode request: %s", str(e))
-            return None
-    async def fetch_charging_power(self):
-        """Fetch the EV charging power from the API."""
-        url = f"http://{self._ip_address}/api/e-mobility/state"
-        headers = {"Authorization": f"Bearer {self._access_token}"}
-
-        _LOGGER.debug("Requesting EV charging power from: %s", url)
-
-        try:
-            async with self._session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    charging_power = data.get("EvChargingPower", {}).get("total")
-                    _LOGGER.debug("Parsed EV charging power: %s", charging_power)
-                    _LOGGER.debug("Full EV state response: %s", data)
-                    return charging_power
-                else:
-                    _LOGGER.error("Failed to get EV charging power. Response status: %d", response.status)
-                    _LOGGER.debug("Response content: %s", await response.text())
-                    return None
-        except Exception as e:
-            _LOGGER.error("Error during EV charging power request: %s", str(e))
-            return None
-    async def fetch_prozentage(self):
-        """Fetch the EV prozentage from API"""
-        url = f"http://{self._ip_address}/api/e-mobility/config/chargemode"
-        headers = {"Authorization": f"Bearer {self._access_token}"}
-
-        _LOGGER.debug("Requesting EV prozentage from: %s", url)
-
-        try:
-            async with self._session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    prozentage = data.get("minpvpowerquota")
-                    _LOGGER.debug("Parsed EV prozentage: %s", prozentage)
-                    _LOGGER.debug("Full EV  response: %s", data)
-                    return prozentage
-                else:
-                    _LOGGER.error("Failed to get EV prozentage. Response status: %d", response.status)
-                    _LOGGER.debug("Response content: %s", await response.text())
-                    return None
-        except Exception as e:
-            _LOGGER.error("Error during EV prozentage request: %s", str(e))
-            return None
-
-async def set_charging_mode(session, ip_address, access_token, mode, minpvpowerquota=None):
-    """Send a PUT request to set the charging mode."""
-    url = f"http://{ip_address}/api/e-mobility/config/chargemode"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json;charset=UTF-8",
-        "host": ip_address,
-    }
-    
-    # Set default minpvpowerquota based on mode if not provided
-    if minpvpowerquota is None:
-        if mode == "pv":
-            minpvpowerquota = 100  # Pure PV mode
-        elif mode == "grid":
-            minpvpowerquota = 0  # Grid mode doesn't use PV
-        elif mode == "hybrid":
-            minpvpowerquota = 50  # Default hybrid at 50%
-        else:  # lock mode
-            minpvpowerquota = 0
-    
-    payload = {
-        "mode": mode,
-        "mincharginpowerquota": None,  # JSON null
-        "minpvpowerquota": minpvpowerquota
-    }
-
-    _LOGGER.debug("Sending PUT to %s with payload: %s", url, payload)
-
-    try:
-        async with session.put(url, headers=headers, json=payload) as response:
-            # Check for both 200 and 204 status codes (both indicate success)
-            if response.status in [200, 204]:
-                _LOGGER.info("Successfully set charging mode to %s with minpvpowerquota %s", mode, minpvpowerquota)
-            else:
-                _LOGGER.error("Failed to set charging mode. Status: %d", response.status)
-                _LOGGER.debug("Response content: %s", await response.text())
-    except Exception as e:
-        _LOGGER.error("Error setting charging mode: %s", str(e))
-        
-async def set_prozentage(session, ip_address, access_token, prozentage):
-    """Send a PUT request to set the prozentage."""
-    url = f"http://{ip_address}/api/e-mobility/config/chargemode"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json;charset=UTF-8",
-        "host": ip_address,
-    }
-    payload = {
-        "mode": "hybrid",
-        "mincharginpowerquota": None,  # JSON null
-        "minpvpowerquota": prozentage
-    }
-
-    _LOGGER.debug("Sending PUT to %s with payload: %s", url, payload)
-
-    try:
-        async with session.put(url, headers=headers, json=payload) as response:
-            if response.status == 204:
-                _LOGGER.info("Successfully set prozentage to %s", prozentage)
-            else:
-                _LOGGER.error("Failed to set prozentage status: %d", response.status)
-                _LOGGER.debug("Response content: %s", await response.text())
-    except Exception as e:
-        _LOGGER.error("Error setting prozentage: %s", str(e))
+    def native_value(self) -> Any:
+        """Return the current value from coordinator data."""
+        return self.coordinator.data.get(self._sensor_key)
