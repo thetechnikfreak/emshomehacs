@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="icon.svg" alt="ABL Logo" width="200">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="icon-white.svg">
+    <source media="(prefers-color-scheme: light)" srcset="icon.svg">
+    <img src="icon.svg" alt="ABL Logo" width="200">
+  </picture>
 </p>
 
 # eMShome Smart Meter Integration for Home Assistant
