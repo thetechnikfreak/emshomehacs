@@ -43,7 +43,7 @@ SENSOR_DESCRIPTIONS: dict[str, dict[str, Any]] = {
     SENSOR_EV_POWER_TOTAL: {
         "translation_key": SENSOR_EV_POWER_TOTAL,
         "icon": "mdi:flash",
-        "native_unit_of_measurement": UnitOfPower.WATT,
+        "native_unit_of_measurement": UnitOfPower.KILO_WATT,
         "device_class": SensorDeviceClass.POWER,
     },
 }
@@ -159,4 +159,14 @@ class EMShomeSensor(CoordinatorEntity[EMShomeDataUpdateCoordinator], SensorEntit
     @property
     def native_value(self) -> Any:
         """Return the current value from coordinator data."""
-        return self.coordinator.data.get(self._sensor_key)
+        val = self.coordinator.data.get(self._sensor_key)
+        if val is None:
+            return None
+
+        if self._sensor_key == SENSOR_EV_POWER_TOTAL:
+            try:
+                return round(float(val) / 1000.0, 2)
+            except (ValueError, TypeError):
+                return val
+
+        return val
