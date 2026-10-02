@@ -40,8 +40,16 @@ class EMShomeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if chargemode is None and state is None:
             raise UpdateFailed("Could not fetch any data from device")
 
+        raw_ev_power = ((state or {}).get("EvChargingPower") or {}).get("total")
+
+        ev_power_kw = (
+            round(raw_ev_power / 1_000_000, 2)
+            if raw_ev_power is not None
+            else None
+        )
+
         return {
             SENSOR_CHARGING_MODE: (chargemode or {}).get("mode"),
             SENSOR_PV_PERCENTAGE: (chargemode or {}).get("minpvpowerquota"),
-            SENSOR_EV_POWER_TOTAL: ((state or {}).get("EvChargingPower") or {}).get("total"),
+            SENSOR_EV_POWER_TOTAL: ev_power_kw,
         }
