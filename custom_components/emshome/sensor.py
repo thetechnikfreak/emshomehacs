@@ -14,7 +14,11 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from .api import EMShomeApiClient
 from .const import (
     DOMAIN,
@@ -45,6 +49,7 @@ SENSOR_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         "icon": "mdi:flash",
         "native_unit_of_measurement": UnitOfPower.KILO_WATT,
         "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
     },
 }
 
@@ -142,6 +147,7 @@ class EMShomeSensor(CoordinatorEntity[EMShomeDataUpdateCoordinator], SensorEntit
         self._attr_translation_key = description["translation_key"]
         self._attr_icon = description.get("icon")
         self._attr_device_class = description.get("device_class")
+        self._attr_state_class = description.get("state_class")
         self._attr_native_unit_of_measurement = description.get("native_unit_of_measurement")
         self._attr_unique_id = f"{entry.entry_id}_{sensor_key}"
 
@@ -159,14 +165,4 @@ class EMShomeSensor(CoordinatorEntity[EMShomeDataUpdateCoordinator], SensorEntit
     @property
     def native_value(self) -> Any:
         """Return the current value from coordinator data."""
-        val = self.coordinator.data.get(self._sensor_key)
-        if val is None:
-            return None
-
-        if self._sensor_key == SENSOR_EV_POWER_TOTAL:
-            try:
-                return round(float(val) / 1000.0, 2)
-            except (ValueError, TypeError):
-                return val
-
-        return val
+        return self.coordinator.data.get(self._sensor_key)
